@@ -1,0 +1,71 @@
+(***************************************************)
+(*                 Scilla version                  *)
+(***************************************************)
+
+scilla_version 0
+
+(***************************************************)
+(*               Associated library                *)
+(***************************************************)
+
+library RandomHelper
+
+let one_msg = 
+  fun (msg: Message) =>
+  let nil_msg = Nil { Message} in
+  Cons {Message} msg nil_msg
+
+(***************************************************)
+(*             The contract definition             *)
+(***************************************************)
+
+contract RandomHelper
+(owner: ByStr20)
+
+field contract_version : String = "1.0.0"
+
+(* Mutable fields *)
+field nonce : Uint128 = Uint128 0
+
+transition getVersion ()
+  r <- contract_version;
+  msg = { 
+    _tag: "getVersion";
+    _recipient: _sender;
+    _amount: Uint128 0;
+    version: r
+  };
+  msgs = one_msg msg;
+  send msgs
+end
+
+transition getPseudoRandomNumber()
+  (* Convert `BLOCKNUMBER` from BNum to String data type *)
+  blockNumber <- & BLOCKNUMBER;
+  zeroBlock = BNum 0;
+  blockNumberInt = builtin bsub blockNumber zeroBlock;
+  blockNumberStr = builtin to_string blockNumberInt;
+
+  (* Convert `_sender` from ByStr20 to String data type *)
+  senderStr = builtin to_string _sender;
+
+  (* Generate seed *)
+  seed = builtin concat blockNumberStr senderStr;
+
+  (* Generate hash using SHA256 in ByStr32 data type *)
+  hash = builtin sha256hash seed;
+  (* Example: "0xaa57fea2cc735b2ea7cb6cbbd08ae7fa1a3638e57b630e2b97df" *)
+
+  (* Generate numerical representation in Uint256 data type *)
+  number = builtin to_uint256 hash;
+  (* Example: 8834848337709470304152320114302891829254747481345359538254027552915119725333 *)
+
+  msg = { 
+    _tag: "getPseudoRandomNumber";
+    _recipient: _sender;
+    _amount: Uint128 0;
+    outcome: number
+  };
+  msgs = one_msg msg;
+  send msgs
+end
